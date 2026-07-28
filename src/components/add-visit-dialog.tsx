@@ -45,6 +45,11 @@ interface AddVisitDialogProps {
   initialData?: VisitFormData & { id: string };
 }
 
+const TYPE_OPTIONS = [
+  { value: "eating", label: "🍜 美食" },
+  { value: "playing", label: "🎮 游玩" },
+];
+
 const TAG_SUGGESTIONS = [
   "火锅",
   "烤肉",
@@ -71,7 +76,7 @@ export function AddVisitDialog({
 }: AddVisitDialogProps) {
   const [form, setForm] = useState<VisitFormData>(
     initialData || {
-      type: "eating",
+      type: TYPE_OPTIONS[0].value,
       name: "",
       location: "",
       date: new Date(),
@@ -92,20 +97,27 @@ export function AddVisitDialog({
 
     setUploading(true);
     try {
+      const urls: string[] = [];
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
         if (data.url) {
-          setForm((prev) => ({ ...prev, photos: [...prev.photos, data.url] }));
+          urls.push(data.url);
         }
       }
-      toast.success("照片上传成功 📸");
+      if (urls.length > 0) {
+        setForm((prev) => ({ ...prev, photos: [...prev.photos, ...urls] }));
+        toast.success(`照片上传成功 ${urls.length} 张 📸`);
+      } else {
+        toast.error("照片上传失败");
+      }
     } catch {
       toast.error("照片上传失败");
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -163,8 +175,9 @@ export function AddVisitDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="eating">🍜 美食</SelectItem>
-                <SelectItem value="playing">🎮 游玩</SelectItem>
+                {TYPE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
               </SelectContent>
             </Select>
           </div>

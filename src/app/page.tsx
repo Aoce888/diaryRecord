@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { VisitCard } from "@/components/visit-card";
 import { AddVisitDialog } from "@/components/add-visit-dialog";
 import { AuthDialog } from "@/components/auth-dialog";
@@ -54,16 +55,25 @@ interface UserInfo {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingVisit, setEditingVisit] = useState<VisitFormData & { id: string } | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Auto-open login dialog when redirected with ?login=1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("login") === "1" && !user) {
+      setAuthOpen(true);
+      router.replace("/");
+    }
+  }, [user, router]);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -97,28 +107,9 @@ export default function Home() {
     fetchVisits();
   }, [fetchUser, fetchVisits]);
 
-  const handleEdit = (visit: Visit) => {
-    setEditingVisit({
-      id: visit.id,
-      type: visit.type,
-      name: visit.name,
-      location: visit.location,
-      date: new Date(visit.date),
-      cost: visit.cost.toString(),
-      rating: visit.rating,
-      notes: visit.notes || "",
-      tags: visit.tags,
-      photos: visit.photos.map((p) => p.url),
-    });
-    setDialogOpen(true);
-  };
-
   const handleSave = async (data: VisitFormData) => {
-    const isEdit = !!editingVisit;
-    const url = isEdit ? `/api/visits/${editingVisit.id}` : "/api/visits";
-    const method = isEdit ? "PUT" : "POST";
-    const res = await fetch(url, {
-      method,
+    const res = await fetch("/api/visits", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...data,
@@ -127,7 +118,6 @@ export default function Home() {
     });
     if (res.ok) {
       fetchVisits();
-      setEditingVisit(null);
     } else {
       const err = await res.json();
       toast.error(err.error || "保存失败");
@@ -135,7 +125,6 @@ export default function Home() {
   };
 
   const handleOpenAdd = () => {
-    setEditingVisit(null);
     setDialogOpen(true);
   };
 
@@ -174,18 +163,21 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-pink-100 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <h1 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="cursor-pointer text-left text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-500 hover:opacity-80 sm:text-2xl"
+          >
             🎉 吃喝玩乐日记
-          </h1>
-          <div className="flex items-center gap-3">
+          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
             {userLoading ? null : user ? (
               <>
                 <button
                   onClick={() => setProfileOpen(true)}
                   className="flex items-center gap-2 rounded-xl px-2 py-1 transition-colors hover:bg-pink-50"
                 >
-                  <Avatar className="h-8 w-8 cursor-pointer">
+                  <Avatar className="h-7 w-7 cursor-pointer sm:h-8 sm:w-8">
                     {user.avatar ? (
                       <Image
                         src={user.avatar}
@@ -199,16 +191,17 @@ export default function Home() {
                       </AvatarFallback>
                     )}
                   </Avatar>
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="hidden text-sm font-medium text-gray-700 sm:inline">
                     {user.name}
                   </span>
                 </button>
                 <Button
                   onClick={() => setDialogOpen(true)}
                   className="rounded-xl bg-gradient-to-r from-pink-400 to-purple-400 font-bold text-white hover:from-pink-500 hover:to-purple-500"
+                  size="sm"
                 >
-                  <Plus size={18} className="mr-1" />
-                  新增
+                  <Plus size={16} className="sm:mr-1" />
+                  <span className="hidden sm:inline">新增</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -281,7 +274,6 @@ export default function Home() {
                 visit={visit}
                 currentUser={user}
                 onDelete={visit.creatorId === user?.id ? () => handleDelete(visit.id) : undefined}
-                onEdit={visit.creatorId === user?.id ? () => handleEdit(visit) : undefined}
               />
             ))}
           </div>
@@ -291,9 +283,8 @@ export default function Home() {
       {/* Add Dialog */}
       <AddVisitDialog
         open={dialogOpen}
-        onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingVisit(null); }}
+        onOpenChange={setDialogOpen}
         onSave={handleSave}
-        initialData={editingVisit || undefined}
       />
 
       {/* Auth Dialog */}

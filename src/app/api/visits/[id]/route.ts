@@ -11,6 +11,42 @@ async function canEdit(visitId: string, userId: string) {
   return visit.userId === userId || visit.editors.some((e) => e.id === userId);
 }
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const visit = await prisma.visit.findUnique({
+      where: { id },
+      include: {
+        photos: true,
+        creator: { select: { id: true, name: true, avatar: true } },
+        editors: { select: { id: true } },
+      },
+    });
+
+    if (!visit) {
+      return NextResponse.json({ error: "记录不存在" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      ...visit,
+      tags: JSON.parse(visit.tags),
+      creatorName: visit.creator.name,
+      creatorId: visit.creator.id,
+      creatorAvatar: (visit as any).creator.avatar || null,
+      editors: visit.editors.map((e: any) => e.id),
+    });
+  } catch (error) {
+    console.error("GET /api/visits/[id] error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch visit" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -50,7 +86,7 @@ export async function PUT(
       },
       include: {
         photos: true,
-        creator: { select: { id: true, name: true } },
+        creator: { select: { id: true, name: true, avatar: true } },
         editors: { select: { id: true, name: true, avatar: true } },
       },
     });
@@ -60,6 +96,7 @@ export async function PUT(
       tags: JSON.parse(visit.tags),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
+      creatorAvatar: (visit as any).creator.avatar || null,
       editorCount: visit.editors.length,
     });
   } catch (error) {

@@ -5,12 +5,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StarRating } from "./star-rating";
-import { MapPin, CalendarDays, Utensils, Gamepad2, Trash2, Pencil } from "lucide-react";
+import { MapPin, CalendarDays, Utensils, Gamepad2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { toast } from "sonner";
 
 interface VisitCardProps {
   visit: {
@@ -26,10 +25,10 @@ interface VisitCardProps {
     photos: { id: string; url: string }[];
     creatorName: string;
     creatorId: string;
+    creatorAvatar?: string | null;
   };
   currentUser: { id: string; name: string; avatar?: string } | null;
   onDelete?: () => void;
-  onEdit?: () => void;
 }
 
 const typeEmoji: Record<string, string> = {
@@ -42,45 +41,21 @@ const typeIcon: Record<string, typeof Utensils> = {
   playing: Gamepad2,
 };
 
-export function VisitCard({ visit, currentUser, onDelete, onEdit }: VisitCardProps) {
+export function VisitCard({ visit, currentUser, onDelete }: VisitCardProps) {
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [hasRequested, setHasRequested] = useState(false);
   const TypeIcon = typeIcon[visit.type] || Utensils;
   const emoji = typeEmoji[visit.type] || "📍";
 
   const isOwner = currentUser?.id === visit.creatorId;
-  const isLoggedIn = !!currentUser;
 
   const handleClick = () => {
-    if (isOwner && onEdit) {
-      onEdit();
-    } else {
-      router.push(`/visit/${visit.id}`);
-    }
-  };
-
-  const requestEdit = async () => {
-    try {
-      const res = await fetch(`/api/visits/${visit.id}/edit-requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setHasRequested(true);
-        toast.success("已发送编辑申请，等待审批 ✉️");
-      } else {
-        toast.error(data.error || "申请失败");
-      }
-    } catch {
-      toast.error("申请失败");
-    }
+    router.push(`/visit/${visit.id}`);
   };
 
   return (
     <Card
-      className="group relative cursor-pointer overflow-hidden rounded-2xl border-2 border-pink-100 bg-white/80 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-200/50 hover:border-pink-300"
+      className="group relative cursor-pointer overflow-hidden rounded-2xl border-2 border-pink-100 bg-white/80 pt-0 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-200/50 hover:border-pink-300"
       onClick={handleClick}
     >
       {/* Owner actions */}
@@ -111,27 +86,6 @@ export function VisitCard({ visit, currentUser, onDelete, onEdit }: VisitCardPro
         </div>
       )}
 
-      {/* Edit request button for non-owners */}
-      {!isOwner && isLoggedIn && (
-        <div
-          className="absolute right-2 top-2 z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {hasRequested ? (
-            <div className="rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-600">
-              ⏳ 已申请
-            </div>
-          ) : (
-            <button
-              onClick={requestEdit}
-              className="rounded-full bg-white/90 p-1.5 text-purple-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-purple-500 hover:text-white"
-            >
-              <Pencil size={14} />
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Photo or type indicator */}
       {visit.photos.length > 0 ? (
         <div className="relative h-48 w-full overflow-hidden">
@@ -141,12 +95,8 @@ export function VisitCard({ visit, currentUser, onDelete, onEdit }: VisitCardPro
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
-          <div className="absolute left-2 top-2 rounded-full bg-white/90 p-1">
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-400 text-[10px] font-bold text-white">
-                {visit.creatorName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+          <div className="absolute left-2 top-2 rounded-lg bg-black/50 px-2 py-1">
+            <span className="text-sm font-bold text-white drop-shadow">{visit.name}</span>
           </div>
           <div className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-xs font-medium text-pink-500">
             {emoji} {visit.type === "eating" ? "美食" : "游玩"}
@@ -181,6 +131,9 @@ export function VisitCard({ visit, currentUser, onDelete, onEdit }: VisitCardPro
             )}
             <div className="flex items-center gap-1">
               <Avatar className="h-5 w-5">
+                {visit.creatorAvatar && (
+                  <AvatarImage src={visit.creatorAvatar} alt={visit.creatorName} className="object-cover" />
+                )}
                 <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-400 text-[8px] font-bold text-white">
                   {visit.creatorName.charAt(0)}
                 </AvatarFallback>

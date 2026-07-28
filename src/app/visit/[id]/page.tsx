@@ -6,8 +6,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/star-rating";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, MapPin, CalendarDays, Utensils, Gamepad2, Clock, Edit, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, MapPin, CalendarDays, Utensils, Gamepad2, Clock, Edit, Trash2, Pencil, LogIn } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { AddVisitDialog } from "@/components/add-visit-dialog";
@@ -26,8 +26,24 @@ interface Visit {
   photos: { id: string; url: string }[];
   creatorName: string;
   creatorId: string;
+  creatorAvatar?: string | null;
   createdAt: string;
+  editors: string[];
 }
+
+interface UserInfo {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+type EditStatus =
+  | "none"        // not logged in
+  | "creator"     // is the creator
+  | "editor"      // approved editor
+  | "pending"     // has pending request
+  | "canApply";   // logged in but no permission yet
 
 const typeEmoji: Record<string, string> = {
   eating: "🍜",
@@ -43,29 +59,55 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const [visit, setVisit] = useState<Visit | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isOwner, setIsOwner] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [editStatus, setEditStatus] = useState<EditStatus>("none");
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
         const { id } = await params;
         const [visitRes, meRes] = await Promise.all([
-          fetch(`/api/visits`),
+          fetch(`/api/visits/${id}`),
           fetch("/api/auth/me"),
         ]);
-        const visitData = await visitRes.json();
-        const me = await meRes.json();
 
-        const found = visitData.visits?.find((v: Visit) => v.id === id);
-        if (found) {
-          setVisit(found);
-          setIsOwner(me?.id === found.creatorId);
+        if (!visitRes.ok) {
+          setLoading(false);
+          return;
+        }
+
+        const visitData = await visitRes.json();
+        const me = meRes.ok ? await meRes.json() : null;
+
+        setVisit(visitData);
+        setUser(me);
+
+        // Determine edit status
+        if (!me) {
+          setEditStatus("none");
+        } else if (me.id === visitData.creatorId) {
+          setEditStatus("creator");
+        } else if (visitData.editors?.includes(me.id)) {
+          setEditStatus("editor");
+        } else {
+          // Check if has pending request
+          const reqRes = await fetch(`/api/visits/${id}/edit-requests`);
+          if (reqRes.ok) {
+            const requests = await reqRes.json();
+            const pending = requests.find((r: any) => r.requesterId === me.id && r.status === "pending");
+            setEditStatus(pending ? "pending" : "canApply");
+          } else {
+            setEditStatus("canApply");
+          }
         }
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
+        setUserLoading(false);
       }
     };
     load();
@@ -107,6 +149,28 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
     }
   };
 
+  const handleApplyEdit = async () => {
+    if (!visit || !user) return;
+    setApplying(true);
+    try {
+      const res = await fetch(`/api/visits/${visit.id}/edit-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEditStatus("pending");
+        toast.success("已发送编辑申请，等待创建者审批 ✉️");
+      } else {
+        toast.error(data.error || "申请失败");
+      }
+    } catch {
+      toast.error("申请失败");
+    } finally {
+      setApplying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 flex items-center justify-center">
@@ -131,6 +195,7 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
 
   const TypeIcon = typeIcon[visit.type] || Utensils;
   const emoji = typeEmoji[visit.type] || "📍";
+  const canEdit = editStatus === "creator" || editStatus === "editor";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
@@ -145,17 +210,17 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
             <ArrowLeft size={18} className="mr-1" />
             返回
           </Button>
-          <div className="flex items-center gap-2">
-            {isOwner && (
-              <>
-                <Button
-                  onClick={() => setEditOpen(true)}
-                  variant="outline"
-                  className="rounded-xl border-pink-200 text-pink-500"
-                >
-                  <Edit size={16} className="mr-1" />
-                  编辑
-                </Button>
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setEditOpen(true)}
+                variant="outline"
+                className="rounded-xl border-pink-200 text-pink-500"
+              >
+                <Edit size={16} className="mr-1" />
+                编辑
+              </Button>
+              {editStatus === "creator" && (
                 <Button
                   onClick={handleDelete}
                   variant="outline"
@@ -163,9 +228,9 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
                 >
                   <Trash2 size={16} />
                 </Button>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -180,6 +245,19 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
               <TypeIcon size={14} className="text-green-500" />
               <span>{visit.type === "eating" ? "美食" : "游玩"}</span>
               <span className="text-green-600 font-medium">¥{visit.cost}/人</span>
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+              <span>由</span>
+              <Avatar className="h-4 w-4">
+                {visit.creatorAvatar && (
+                  <AvatarImage src={visit.creatorAvatar} alt={visit.creatorName} className="object-cover" />
+                )}
+                <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-400 text-[7px] font-bold text-white">
+                  {visit.creatorName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-gray-500 font-medium">{visit.creatorName}</span>
+              <span>创建</span>
             </div>
           </div>
         </div>
@@ -264,19 +342,47 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
           </div>
         )}
 
-        {/* Creator */}
-        <div className="mt-6 flex items-center gap-2 text-sm text-gray-400">
-          <Avatar className="h-6 w-6">
-            <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-400 text-[10px] font-bold text-white">
-              {visit.creatorName.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-          <span>由 {visit.creatorName} 创建</span>
-        </div>
+        {/* Edit action bar (below content) */}
+        {!canEdit && (
+          <div className="mt-8 border-t border-pink-100 pt-6">
+            {editStatus === "pending" && (
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-600">
+                <Clock size={16} />
+                编辑申请已提交，等待创建者审批
+              </div>
+            )}
+            {editStatus === "canApply" && (
+              <Button
+                onClick={handleApplyEdit}
+                disabled={applying}
+                className="w-full rounded-xl bg-gradient-to-r from-purple-400 to-pink-400 py-6 text-lg font-bold text-white hover:from-purple-500 hover:to-pink-500"
+              >
+                {applying ? (
+                  "申请中..."
+                ) : (
+                  <>
+                    <Pencil size={18} className="mr-2" />
+                    申请编辑权限
+                  </>
+                )}
+              </Button>
+            )}
+            {editStatus === "none" && (
+              <Button
+                onClick={() => router.push("/?login=1")}
+                variant="outline"
+                className="w-full rounded-xl border-pink-200 py-6 text-lg font-bold text-pink-500 hover:bg-pink-50"
+              >
+                <LogIn size={18} className="mr-2" />
+                登录后查看编辑权限
+              </Button>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Edit Dialog */}
-      {isOwner && (
+      {canEdit && (
         <AddVisitDialog
           open={editOpen}
           onOpenChange={setEditOpen}

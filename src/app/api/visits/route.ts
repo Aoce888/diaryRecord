@@ -19,7 +19,7 @@ export async function GET(request: Request) {
         where,
         include: {
           photos: true,
-          creator: { select: { id: true, name: true } },
+          creator: { select: { id: true, name: true, avatar: true } },
         },
         orderBy: { date: "desc" },
         skip: (page - 1) * limit,
@@ -34,6 +34,7 @@ export async function GET(request: Request) {
         tags: JSON.parse(v.tags),
         creatorName: v.creator.name,
         creatorId: v.creator.id,
+        creatorAvatar: (v.creator as any).avatar || null,
       })),
       total,
       page,
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
       },
       include: {
         photos: true,
-        creator: { select: { id: true, name: true } },
+        creator: { select: { id: true, name: true, avatar: true } },
         editors: { select: { id: true, name: true, avatar: true } },
       },
     });
@@ -90,6 +91,7 @@ export async function POST(request: Request) {
       tags: JSON.parse(visit.tags),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
+      creatorAvatar: (visit as any).creator.avatar || null,
     });
   } catch (error) {
     console.error("POST /api/visits error:", error);
