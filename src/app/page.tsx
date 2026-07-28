@@ -59,6 +59,7 @@ export default function Home() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<VisitFormData & { id: string } | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [filterType, setFilterType] = useState("all");
@@ -96,9 +97,28 @@ export default function Home() {
     fetchVisits();
   }, [fetchUser, fetchVisits]);
 
+  const handleEdit = (visit: Visit) => {
+    setEditingVisit({
+      id: visit.id,
+      type: visit.type,
+      name: visit.name,
+      location: visit.location,
+      date: new Date(visit.date),
+      cost: visit.cost.toString(),
+      rating: visit.rating,
+      notes: visit.notes || "",
+      tags: visit.tags,
+      photos: visit.photos.map((p) => p.url),
+    });
+    setDialogOpen(true);
+  };
+
   const handleSave = async (data: VisitFormData) => {
-    const res = await fetch("/api/visits", {
-      method: "POST",
+    const isEdit = !!editingVisit;
+    const url = isEdit ? `/api/visits/${editingVisit.id}` : "/api/visits";
+    const method = isEdit ? "PUT" : "POST";
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...data,
@@ -107,10 +127,16 @@ export default function Home() {
     });
     if (res.ok) {
       fetchVisits();
+      setEditingVisit(null);
     } else {
       const err = await res.json();
       toast.error(err.error || "保存失败");
     }
+  };
+
+  const handleOpenAdd = () => {
+    setEditingVisit(null);
+    setDialogOpen(true);
   };
 
   const handleDelete = async (visitId: string) => {
@@ -255,6 +281,7 @@ export default function Home() {
                 visit={visit}
                 currentUser={user}
                 onDelete={visit.creatorId === user?.id ? () => handleDelete(visit.id) : undefined}
+                onEdit={visit.creatorId === user?.id ? () => handleEdit(visit) : undefined}
               />
             ))}
           </div>
@@ -264,8 +291,9 @@ export default function Home() {
       {/* Add Dialog */}
       <AddVisitDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingVisit(null); }}
         onSave={handleSave}
+        initialData={editingVisit || undefined}
       />
 
       {/* Auth Dialog */}
