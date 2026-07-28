@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  avatar        String?
+  passwordHash  String   @map("password_hash")
+  visits        Visit[]
+  editingVisits Visit[]  @relation("VisitEditors")
+  editRequests  EditRequest[] @relation("EditRequestUser")
+  createdAt     DateTime @default(now())
+
+  @@map("users")
+}
+
+model Visit {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  creator   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  editors   User[]   @relation("VisitEditors")
+  type      String   // "eating" | "playing"
+  name      String   // 店铺/地点名
+  location  String   // 详细地址
+  date      DateTime // 日期
+  cost      Float    // 人均价格
+  rating    Int      // 1-5 星级
+  notes     String?  @db.Text // 备注
+  tags      String   @default("[]") // 标签 JSON 数组
+  photos    Photo[]
+  editRequests EditRequest[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([date])
+  @@index([rating])
+  @@map("visits")
+}
+
+model EditRequest {
+  id          String   @id @default(cuid())
+  visitId     String   @map("visit_id")
+  visit       Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  requesterId String   @map("requester_id")
+  requester   User     @relation("EditRequestUser", fields: [requesterId], references: [id], onDelete: Cascade)
+  status      String   @default("pending") // pending | approved | rejected
+  createdAt   DateTime @default(now())
+
+  @@unique([visitId, requesterId])
+  @@index([visitId])
+  @@index([requesterId])
+  @@map("edit_requests")
+}
+
+model Photo {
+  id      String  @id @default(cuid())
+  url     String
+  visitId String  @map("visit_id")
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@map("photos")
+}
