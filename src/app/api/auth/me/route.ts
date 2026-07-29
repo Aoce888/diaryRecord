@@ -18,7 +18,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const currentUser = await getCurrentUser();
+  const currentUser = await getCurrentUser(request);
   if (!currentUser) {
     return NextResponse.json({ error: "请先登录" }, { status: 401 });
   }

@@ -2,6 +2,8 @@
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+**重要：每次修改代码后，必须执行 `npm run build && pm2 restart diary-app` 完成部署，否则改动不会生效。**
 <!-- END:nextjs-agent-rules -->
 
 ---
@@ -19,6 +21,15 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 技术栈
 
 Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
+
+## 变更历史
+
+### 2026-07-29 — 卡片图片点击放大功能
+
+- 新增 `src/components/image-zoom.tsx`：可复用灯箱组件，支持 ESC 关闭、←/→ 键切换、点击背景关闭
+- 修改 `src/components/visit-card.tsx`：卡片封面图点击打开放大预览（阻止冒泡，不跳转详情页）
+- 修改 `src/app/visit/[id]/page.tsx`：详情页照片画廊点击打开放大预览，多图可左右切换
+- 部署：`npm run build && pm2 restart diary-app`
 
 ## 常用操作
 

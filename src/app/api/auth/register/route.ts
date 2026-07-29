@@ -22,14 +22,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const passwordHash = await hash(password, 12);
+    const passwordHash = password ? await hash(password, 12) : null;
     const user = await prisma.user.create({
-      data: { email, name, passwordHash, avatar: avatar || "" },
+      data: { email: email || null, name, passwordHash, avatar: avatar || "" },
     });
 
     const token = await createToken({
       userId: user.id,
-      email: user.email,
+      email: user.email || "",
       name: user.name,
     });
     const response = NextResponse.json({

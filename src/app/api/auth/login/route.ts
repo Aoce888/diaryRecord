@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
+    if (!user || !user.passwordHash) {
       return NextResponse.json(
         { error: "邮箱或密码错误" },
         { status: 401 }
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const token = await createToken({
       userId: user.id,
-      email: user.email,
+      email: user.email || "",
       name: user.name,
     });
     const response = NextResponse.json({

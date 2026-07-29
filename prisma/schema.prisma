@@ -12,10 +12,11 @@ datasource db {
 
 model User {
   id            String   @id @default(cuid())
-  email         String   @unique
+  email         String?  @unique
   name          String
   avatar        String?
-  passwordHash  String   @map("password_hash")
+  passwordHash  String?  @map("password_hash")
+  openid        String?  @unique
   visits        Visit[]
   editingVisits Visit[]  @relation("VisitEditors")
   editRequests  EditRequest[] @relation("EditRequestUser")

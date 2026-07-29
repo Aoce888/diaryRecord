@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/star-rating";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ImageZoom } from "@/components/image-zoom";
 import { ArrowLeft, MapPin, CalendarDays, Utensils, Gamepad2, Clock, Edit, Trash2, Pencil, LogIn } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
@@ -316,21 +317,27 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
         {visit.photos.length > 0 && (
           <div className="mb-6">
             <h3 className="mb-3 text-sm font-medium text-gray-500">照片 ({visit.photos.length})</h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {visit.photos.map((photo, i) => (
-                <div
-                  key={photo.id}
-                  className="relative aspect-square overflow-hidden rounded-xl border border-pink-100 bg-white"
-                >
-                  <Image
-                    src={photo.url}
-                    alt={`${visit.name} - 照片${i + 1}`}
-                    fill
-                    className="object-cover"
-                  />
+            <ImageZoom
+              images={visit.photos.map((p, i) => ({ url: p.url, alt: `${visit.name} - 照片${i + 1}` }))}
+            >
+              {() => (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {visit.photos.map((photo, i) => (
+                    <div
+                      key={photo.id}
+                      className="relative aspect-square overflow-hidden rounded-xl border border-pink-100 bg-white transition-transform duration-200 hover:scale-105"
+                    >
+                      <Image
+                        src={photo.url}
+                        alt={`${visit.name} - 照片${i + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </ImageZoom>
           </div>
         )}
 
