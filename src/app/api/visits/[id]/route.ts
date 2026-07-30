@@ -121,8 +121,12 @@ export async function DELETE(
       return NextResponse.json({ error: "无权删除此记录" }, { status: 403 });
     }
 
-    await prisma.visit.delete({ where: { id } });
-    return NextResponse.json({ success: true });
+    // 软删除：设置 deletedAt
+    await prisma.visit.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return NextResponse.json({ success: true, deleted: true });
   } catch (error) {
     console.error("DELETE /api/visits/[id] error:", error);
     return NextResponse.json(

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
+  const status = searchParams.get("status"); // "trash" | undefined
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
 
@@ -12,6 +13,25 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (type && type !== "all") {
       where.type = type;
+    }
+
+    if (status === "trash") {
+      // 回收站：仅创建者查看已删除的记录
+      const user = await getCurrentUser(request);
+      if (!user) {
+        return NextResponse.json({ error: "请先登录" }, { status: 401 });
+      }
+      where.deletedAt = { not: null };
+      where.userId = user.userId;
+
+      // 清理超过 14 天的记录（物理删除）
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      await prisma.visit.deleteMany({
+        where: { userId: user.userId, deletedAt: { not: null, lt: fourteenDaysAgo } },
+      });
+    } else {
+      // 默认：只展示未删除的记录
+      where.deletedAt = null;
     }
 
     const [visits, total] = await Promise.all([

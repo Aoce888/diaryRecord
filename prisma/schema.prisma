@@ -38,7 +38,8 @@ model Visit {
   rating    Int      // 1-5 星级
   notes     String?  @db.Text // 备注
   tags      String   @default("[]") // 标签 JSON 数组
-  photos    String @default("[]") // JSON 数组，存储图片 URL 列表
+  photos    String   @default("[]") // JSON 数组，存储图片 URL 列表
+  deletedAt DateTime? @map("deleted_at") // 软删除时间
   editRequests EditRequest[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -47,6 +48,7 @@ model Visit {
   @@index([type])
   @@index([date])
   @@index([rating])
+  @@index([deletedAt])
   @@map("visits")
 }
 
