@@ -56,6 +56,8 @@ ssh $SERVER "cd $REMOTE_PATH && `
     rm -f .deploy.tar.gz && `
     npm install --omit=dev && `
     npx prisma generate && `
+    HASH=\$(grep -roh '@prisma/client-[a-f0-9]\{12,\}' .next/server 2>/dev/null | sed 's/@prisma\///' | sort -u) && `
+    [ -n \"\$HASH\" ] && ln -sf client \"node_modules/@prisma/\$HASH\" 2>/dev/null; `
     pm2 delete diary-app 2>/dev/null; `
     pkill -9 -f 'next-server' 2>/dev/null || true; `
     sleep 2; `
