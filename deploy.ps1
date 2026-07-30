@@ -49,9 +49,9 @@ ssh $SERVER "cd $REMOTE_PATH && `
     rm -f .deploy.tar.gz && `
     npm install --omit=dev && `
     npx prisma generate && `
-    pm2 stop diary-app && `
-    fuser -k 3001/tcp 2>/dev/null || true && `
-    sleep 2 && `
+    pm2 delete diary-app 2>/dev/null; `
+    pkill -9 -f 'next-server' 2>/dev/null || true; `
+    sleep 2; `
     pm2 start npm --name diary-app -- start -- --port 3001"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "服务器部署步骤异常，请 SSH 检查" -ForegroundColor Red
