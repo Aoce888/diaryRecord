@@ -22,7 +22,7 @@ interface VisitCardProps {
     rating: number;
     notes?: string;
     tags: string[];
-    photos: { id: string; url: string }[];
+    photos: string[];
     creatorName: string;
     creatorId: string;
     creatorAvatar?: string | null;
@@ -90,7 +90,7 @@ export function VisitCard({ visit, currentUser, onDelete }: VisitCardProps) {
       {visit.photos.length > 0 ? (
         <div className="relative h-48 w-full overflow-hidden">
           <Image
-            src={visit.photos[0].url}
+            src={visit.photos[0]}
             alt={visit.name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"

@@ -30,7 +30,7 @@ interface Visit {
   rating: number;
   notes?: string;
   tags: string[];
-  photos: { id: string; url: string }[];
+  photos: string[];
   creatorName: string;
   creatorId: string;
 }

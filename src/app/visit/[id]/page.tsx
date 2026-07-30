@@ -24,7 +24,7 @@ interface Visit {
   rating: number;
   notes?: string;
   tags: string[];
-  photos: { id: string; url: string }[];
+  photos: string[];
   creatorName: string;
   creatorId: string;
   creatorAvatar?: string | null;
@@ -318,17 +318,17 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
           <div className="mb-6">
             <h3 className="mb-3 text-sm font-medium text-gray-500">照片 ({visit.photos.length})</h3>
             <ImageZoom
-              images={visit.photos.map((p, i) => ({ url: p.url, alt: `${visit.name} - 照片${i + 1}` }))}
+              images={visit.photos.map((url, i) => ({ url, alt: `${visit.name} - 照片${i + 1}` }))}
             >
               {() => (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {visit.photos.map((photo, i) => (
+                  {visit.photos.map((url, i) => (
                     <div
-                      key={photo.id}
+                      key={url}
                       className="relative aspect-square overflow-hidden rounded-xl border border-pink-100 bg-white transition-transform duration-200 hover:scale-105"
                     >
                       <Image
-                        src={photo.url}
+                        src={url}
                         alt={`${visit.name} - 照片${i + 1}`}
                         fill
                         className="object-cover"
@@ -405,7 +405,7 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
             rating: visit.rating,
             notes: visit.notes || "",
             tags: visit.tags,
-            photos: visit.photos.map((p) => p.url),
+            photos: visit.photos,
           }}
         />
       )}

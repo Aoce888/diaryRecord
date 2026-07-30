@@ -18,7 +18,6 @@ export async function GET(request: Request) {
       prisma.visit.findMany({
         where,
         include: {
-          photos: true,
           creator: { select: { id: true, name: true, avatar: true } },
         },
         orderBy: { date: "desc" },
@@ -32,6 +31,7 @@ export async function GET(request: Request) {
       visits: visits.map((v) => ({
         ...v,
         tags: JSON.parse(v.tags),
+        photos: JSON.parse(v.photos),
         creatorName: v.creator.name,
         creatorId: v.creator.id,
         creatorAvatar: (v.creator as any).avatar || null,
@@ -73,14 +73,11 @@ export async function POST(request: Request) {
         rating: parseInt(rating),
         notes,
         tags: JSON.stringify(tags || []),
+        photos: JSON.stringify(photos || []),
         userId: user.userId,
         editors: { connect: { id: user.userId } },
-        photos: {
-          create: (photos || []).map((url: string) => ({ url })),
-        },
       },
       include: {
-        photos: true,
         creator: { select: { id: true, name: true, avatar: true } },
         editors: { select: { id: true, name: true, avatar: true } },
       },
@@ -89,6 +86,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...visit,
       tags: JSON.parse(visit.tags),
+      photos: JSON.parse(visit.photos),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,

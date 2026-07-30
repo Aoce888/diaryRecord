@@ -20,7 +20,6 @@ export async function GET(
     const visit = await prisma.visit.findUnique({
       where: { id },
       include: {
-        photos: true,
         creator: { select: { id: true, name: true, avatar: true } },
         editors: { select: { id: true } },
       },
@@ -33,6 +32,7 @@ export async function GET(
     return NextResponse.json({
       ...visit,
       tags: JSON.parse(visit.tags),
+      photos: JSON.parse(visit.photos),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,
@@ -67,8 +67,6 @@ export async function PUT(
     const { type, name, location, date, cost, rating, notes, tags, photos } =
       body;
 
-    await prisma.photo.deleteMany({ where: { visitId: id } });
-
     const visit = await prisma.visit.update({
       where: { id },
       data: {
@@ -80,12 +78,9 @@ export async function PUT(
         rating: parseInt(rating),
         notes,
         tags: JSON.stringify(tags || []),
-        photos: {
-          create: (photos || []).map((url: string) => ({ url })),
-        },
+        photos: JSON.stringify(photos || []),
       },
       include: {
-        photos: true,
         creator: { select: { id: true, name: true, avatar: true } },
         editors: { select: { id: true, name: true, avatar: true } },
       },
@@ -94,6 +89,7 @@ export async function PUT(
     return NextResponse.json({
       ...visit,
       tags: JSON.parse(visit.tags),
+      photos: JSON.parse(visit.photos),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,
