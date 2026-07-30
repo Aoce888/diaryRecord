@@ -51,7 +51,7 @@ export async function GET(request: Request) {
       visits: visits.map((v) => ({
         ...v,
         tags: JSON.parse(v.tags),
-        photos: JSON.parse(v.photos),
+        photos: JSON.parse(v.photos || "[]"),
         creatorName: v.creator.name,
         creatorId: v.creator.id,
         creatorAvatar: (v.creator as any).avatar || null,
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...visit,
       tags: JSON.parse(visit.tags),
-      photos: JSON.parse(visit.photos),
+      photos: JSON.parse(visit.photos || "[]"),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,

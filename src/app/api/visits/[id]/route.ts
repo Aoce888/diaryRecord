@@ -32,7 +32,7 @@ export async function GET(
     return NextResponse.json({
       ...visit,
       tags: JSON.parse(visit.tags),
-      photos: JSON.parse(visit.photos),
+      photos: JSON.parse(visit.photos || "[]"),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,
@@ -89,7 +89,7 @@ export async function PUT(
     return NextResponse.json({
       ...visit,
       tags: JSON.parse(visit.tags),
-      photos: JSON.parse(visit.photos),
+      photos: JSON.parse(visit.photos || "[]"),
       creatorName: visit.creator.name,
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,

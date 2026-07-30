@@ -65,7 +65,7 @@ async function migrate() {
   );
   if (!(colCheck as any).count) {
     console.log("📦 visits 表缺少 photos 列 → 新增列...");
-    await conn.query("ALTER TABLE visits ADD COLUMN photos TEXT NOT NULL DEFAULT ('[]')");
+    await conn.query("ALTER TABLE visits ADD COLUMN photos TEXT");
     console.log("   ✅ 新增 photos 列完成\n");
   } else {
     console.log("✅ visits.photos 列已存在\n");
