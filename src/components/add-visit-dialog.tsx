@@ -25,6 +25,7 @@ import { CalendarIcon, Plus, X, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { toast } from "sonner";
+import { uploadImage } from "@/lib/qiniu-uploader";
 
 interface VisitFormData {
   type: string;
@@ -43,6 +44,7 @@ interface AddVisitDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: VisitFormData) => Promise<void>;
   initialData?: VisitFormData & { id: string };
+  userId?: string | number;
 }
 
 const TYPE_OPTIONS = [
@@ -73,6 +75,7 @@ export function AddVisitDialog({
   onOpenChange,
   onSave,
   initialData,
+  userId,
 }: AddVisitDialogProps) {
   const [form, setForm] = useState<VisitFormData>(
     initialData || {
@@ -93,18 +96,17 @@ export function AddVisitDialog({
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || !userId) return;
 
     setUploading(true);
     try {
       const urls: string[] = [];
       for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        if (data.url) {
-          urls.push(data.url);
+        try {
+          const url = await uploadImage(file, userId, "photos");
+          urls.push(url);
+        } catch {
+          // 单张失败继续上传其余
         }
       }
       if (urls.length > 0) {

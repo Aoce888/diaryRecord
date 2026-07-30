@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Lock, User, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { uploadTempAvatar } from "@/lib/qiniu-uploader";
 
 interface AuthDialogProps {
   open: boolean;
@@ -32,13 +33,8 @@ export function AuthDialog({ open, onOpenChange, onAuthSuccess }: AuthDialogProp
     if (!file) return;
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.url) {
-        setAvatar(data.url);
-      }
+      const url = await uploadTempAvatar(file);
+      setAvatar(url);
     } catch {
       toast.error("头像上传失败");
     }

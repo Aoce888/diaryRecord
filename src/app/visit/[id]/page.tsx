@@ -394,6 +394,7 @@ export default function VisitDetail({ params }: { params: Promise<{ id: string }
           open={editOpen}
           onOpenChange={setEditOpen}
           onSave={handleUpdate}
+          userId={user?.id}
           initialData={{
             id: visit.id,
             type: visit.type,

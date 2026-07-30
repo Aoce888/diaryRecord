@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { User, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { uploadImage } from "@/lib/qiniu-uploader";
 
 interface ProfileEditDialogProps {
   open: boolean;
@@ -35,13 +36,8 @@ export function ProfileEditDialog({
     if (!file) return;
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.url) {
-        setAvatar(data.url);
-      }
+      const url = await uploadImage(file, currentUser.id, "avatars");
+      setAvatar(url);
     } catch {
       toast.error("头像上传失败");
     }

@@ -285,6 +285,7 @@ export default function Home() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSave}
+        userId={user?.id}
       />
 
       {/* Auth Dialog */}
