@@ -3,7 +3,7 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
-**重要：每次修改代码后，必须执行 `npm run build && pm2 restart diary-app` 完成部署，否则改动不会生效。**
+**重要：每次修改代码后，推荐使用 `.\deploy.ps1` 本地构建部署。也可在服务器执行 `npm run build && pm2 restart diary-app`。**
 
 **内存优化：修改接口/API/路由后，只需执行 `npm run build && pm2 restart diary-app` 即可，无需额外步骤。**
 <!-- END:nextjs-agent-rules -->
@@ -41,6 +41,40 @@ Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
 cd /home/myecs/diary-app
 
 # 1. 构建
+npm run build
+
+# 2. 重启 PM2
+pm2 restart diary-app
+
+# 3. 查看状态
+pm2 logs diary-app --lines 10
+```
+
+### 本地构建 + 远程部署（推荐）
+
+在 Windows 本地构建，避免服务器构建占用大量内存。
+
+```powershell
+# Windows PowerShell，在项目根目录执行
+.\deploy.ps1
+```
+
+**部署流程：**
+1. 本地 `npm run build` 构建
+2. tar 打包（排除 `node_modules`、`.git`、`.env`、缓存）
+3. scp 上传到服务器 `myecs@8.134.102.5:/home/myecs/diary-app/`
+4. 服务器自动备份当前版本到 `~/diary-app-backups/`（保留最近 5 份）
+5. 解压 + `npm install --omit=dev` + `prisma generate` + `pm2 restart`
+6. 健康检查（HTTP 200 确认服务正常）
+
+**回滚：** SSH 到服务器，`ls ~/diary-app-backups/` 找到备份版本恢复。
+
+### 服务器直接部署
+
+```bash
+cd /home/myecs/diary-app
+
+# 1. 构建（服务器内存有限，可能 OOM）
 npm run build
 
 # 2. 重启 PM2
