@@ -26,9 +26,9 @@ scp .deploy.tar.gz "$SERVER`:$REMOTE_PATH/"
 
 Write-Host "========== 4. 备份当前版本 ==========" -ForegroundColor Cyan
 ssh $SERVER "cd $REMOTE_PATH && `
-    mkdir -p ../diary-app-backups && `
-    cp -r --no-target-directory . ../diary-app-backups/backup_\$(date +%Y%m%d_%H%M%S) && `
-    ls -dt ../diary-app-backups/backup_* 2>/dev/null | tail -n +6 | xargs rm -rf"
+    mkdir -p backups && `
+    cp -r --no-target-directory . backups/backup_\$(date +%Y%m%d_%H%M%S) && `
+    ls -dt backups/backup_* 2>/dev/null | tail -n +6 | xargs rm -rf"
 
 Write-Host "========== 5. 服务器解压 + 安装依赖 + 重启 ==========" -ForegroundColor Cyan
 ssh $SERVER "cd $REMOTE_PATH && `
