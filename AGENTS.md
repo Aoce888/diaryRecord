@@ -4,6 +4,8 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
 **重要：每次修改代码后，必须执行 `npm run build && pm2 restart diary-app` 完成部署，否则改动不会生效。**
+
+**内存优化：修改接口/API/路由后，只需执行 `npm run build && pm2 restart diary-app` 即可，无需额外步骤。**
 <!-- END:nextjs-agent-rules -->
 
 ---
