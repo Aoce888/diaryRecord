@@ -11,7 +11,7 @@
  *   - 日记照片 → public/diaryRecord/{userId}/photos/xxx.jpg
  */
 
-import { PrismaClient } from "../src/generated/prisma";
+import { PrismaClient } from "../src/generated/prisma/client";
 import qiniu from "qiniu";
 import { readFileSync, existsSync } from "fs";
 import { resolve, join } from "path";
@@ -28,7 +28,7 @@ const mac = new qiniu.auth.digest.Mac(QINIU_AK, QINIU_SK);
 const config = new qiniu.conf.Config();
 config.useHttpsDomain = true;
 // 华南 z2
-config.region = qiniu.httpd.Region.z2;
+config.zone = qiniu.zone.Zone_z2;
 
 function uploadToQiniu(localPath: string, key: string): Promise<string> {
   return new Promise((resolve, reject) => {

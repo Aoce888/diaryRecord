@@ -26,6 +26,15 @@ Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
 
 ## 变更历史
 
+### 2026-07-30 — 本地构建部署脚本
+
+- 新增 `deploy.ps1`：本地 `npm run build` → 打包 → SCP 上传 → 服务器解压 + `prisma generate` + `pm2 restart` 一条龙
+- 修复：安装 `proxy-agent`（七牛 SDK 缺少依赖）
+- 修复：`scripts/migrate-to-cdn.ts` 中 `config.region` → `config.zone`（新版七牛 SDK API）
+- 修复：`tsconfig.json` 排除 `scripts/`，工具脚本不再阻塞 App 构建
+- 更新 `AGENTS.md` 部署说明为本地构建 + 上传模式
+- 部署方式变更：服务器不再执行 `npm run build`（2GB 内存不足）
+
 ### 2026-07-29 — 卡片图片点击放大功能
 
 - 新增 `src/components/image-zoom.tsx`：可复用灯箱组件，支持 ESC 关闭、←/→ 键切换、点击背景关闭
@@ -37,16 +46,26 @@ Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
 
 ### 修改代码后重新部署
 
+> 服务器内存不足（2GB），不支持在服务器上执行 `npm run build`，需要用本地构建 + 上传的方式部署。
+
+**本地（Windows）：**
+
+```powershell
+# 一条命令全自动完成
+.\deploy.ps1
+```
+
+流程：
+1. 本地 `npm run build`（Turbopack 快速构建）
+2. 打包产物（排除 node_modules / .git / .env / 缓存）
+3. SCP 上传到服务器
+4. 服务器解压 → `npm install` → `npx prisma generate` → `pm2 restart diary-app`
+
+**如需手动在服务器上操作：**
+
 ```bash
 cd /home/myecs/diary-app
-
-# 1. 构建
-npm run build
-
-# 2. 重启 PM2
 pm2 restart diary-app
-
-# 3. 查看状态
 pm2 logs diary-app --lines 10
 ```
 
