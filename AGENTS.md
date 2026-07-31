@@ -26,6 +26,15 @@ Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
 
 ## 变更历史
 
+### 2026-07-31 — 圈子功能
+
+- 新增 `Circle`、`CircleMember` Prisma 模型（`circles` / `circle_members` 表）
+- `Visit` 表新增 `is_private` 字段（私密记录仅创建者可见）
+- 新增圈子 API：`/api/circles`（创建/列表）、`/api/circles/[id]`（详情/解散）、`/api/circles/join`（邀请码加入）、`/api/circles/lookup`（查圈子）、`/api/circles/[id]/leave`（退出）、`/api/circles/[id]/members`（成员）
+- `GET /api/visits` 支持 `scope=me` / `scope=circle` 可见性过滤；私密记录详情页做权限校验
+- 小程序：profile 页「圈子」Tab（创建/加入/退出/解散/邀请码复制）、addVisit 页私密开关、首页 feed 改 `scope=circle`
+- 部署：`prisma db push` 同步数据库（MySQL 用户无 shadow db 权限，无法用 migrate dev）+ 手动 SCP 部署
+
 ### 2026-07-30 — 本地构建部署脚本
 
 - 新增 `deploy.ps1`：本地 `npm run build` → 打包 → SCP 上传 → 服务器解压 + `prisma generate` + `pm2 restart` 一条龙

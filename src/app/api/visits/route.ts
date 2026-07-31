@@ -32,6 +32,43 @@ export async function GET(request: Request) {
     } else {
       // 默认：只展示未删除的记录
       where.deletedAt = null;
+
+      // 可见性范围：小程序专用
+      // scope=me     → 仅自己的（含私密）
+      // scope=circle → 自己的全部 + 圈子好友的非私密
+      const scope = searchParams.get("scope");
+      if (scope === "me" || scope === "circle") {
+        const user = await getCurrentUser(request);
+        if (!user) {
+          return NextResponse.json({ error: "请先登录" }, { status: 401 });
+        }
+        if (scope === "me") {
+          where.userId = user.userId;
+        } else {
+          // 我加入的圈子
+          const myMemberships = await prisma.circleMember.findMany({
+            where: { userId: user.userId },
+            select: { circleId: true },
+          });
+          const myCircleIds = myMemberships.map((m) => m.circleId);
+
+          // 这些圈子的所有成员
+          const circleMembers = myCircleIds.length
+            ? await prisma.circleMember.findMany({
+                where: { circleId: { in: myCircleIds } },
+                select: { userId: true },
+              })
+            : [];
+          const visibleUserIds = [
+            ...new Set(circleMembers.map((m) => m.userId)),
+          ];
+
+          where.OR = [
+            { userId: user.userId },
+            { isPrivate: false, userId: { in: visibleUserIds } },
+          ];
+        }
+      }
     }
 
     const [visits, total] = await Promise.all([
@@ -80,7 +117,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { type, name, location, date, cost, rating, notes, tags, photos } =
+    const { type, name, location, date, cost, rating, notes, tags, photos, isPrivate } =
       body;
 
     const visit = await prisma.visit.create({
@@ -94,6 +131,7 @@ export async function POST(request: Request) {
         notes,
         tags: JSON.stringify(tags || []),
         photos: JSON.stringify(photos || []),
+        isPrivate: !!isPrivate,
         userId: user.userId,
         editors: { connect: { id: user.userId } },
       },

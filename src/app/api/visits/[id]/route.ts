@@ -12,7 +12,7 @@ async function canEdit(visitId: string, userId: string) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -27,6 +27,18 @@ export async function GET(
 
     if (!visit) {
       return NextResponse.json({ error: "记录不存在" }, { status: 404 });
+    }
+
+    // 私密记录：仅创建者和协作者可见
+    if (visit.isPrivate) {
+      const user = await getCurrentUser(request);
+      const isAuthorized =
+        user &&
+        (visit.userId === user.userId ||
+          visit.editors.some((e) => e.id === user.userId));
+      if (!isAuthorized) {
+        return NextResponse.json({ error: "无权查看此记录" }, { status: 403 });
+      }
     }
 
     return NextResponse.json({
@@ -64,7 +76,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { type, name, location, date, cost, rating, notes, tags, photos } =
+    const { type, name, location, date, cost, rating, notes, tags, photos, isPrivate } =
       body;
 
     const visit = await prisma.visit.update({
@@ -79,6 +91,7 @@ export async function PUT(
         notes,
         tags: JSON.stringify(tags || []),
         photos: JSON.stringify(photos || []),
+        isPrivate: !!isPrivate,
       },
       include: {
         creator: { select: { id: true, name: true, avatar: true } },
