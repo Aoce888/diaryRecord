@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
+      // 新用户：用微信信息初始化（仅首次）
       user = await prisma.user.create({
         data: {
           openid: wxData.openid,
@@ -64,18 +65,9 @@ export async function POST(request: Request) {
           passwordHash: null,
         },
       });
-    } else {
-      // 更新用户信息（昵称/头像可能变化）
-      if (userInfo) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            name: userInfo.nickName || user.name,
-            avatar: userInfo.avatarUrl || user.avatar,
-          },
-        });
-      }
     }
+    // 老用户：不覆盖资料，昵称/头像只能通过个人中心修改
+    // （否则每次重新登录都会把自定义资料顶掉）
 
     const token = await createToken({
       userId: user.id,

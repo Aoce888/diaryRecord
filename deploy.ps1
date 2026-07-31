@@ -3,7 +3,7 @@
 
 $SERVER = "myecs@8.134.102.5"
 $REMOTE_PATH = "/home/myecs/diary-app"
-$BACKUP_KEEP = 5  # 保留的备份数量
+# 备份策略（保留最近 5 份、跳过 node_modules）在 remote-deploy.sh 中实现
 
 Write-Host "========== 1. 生成 Prisma Client ==========" -ForegroundColor Cyan
 npx prisma generate
@@ -20,12 +20,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "========== 3. 打包产物（排除 node_modules / .git / .env / 缓存）==========" -ForegroundColor Cyan
-tar -czf .deploy.tar.gz `
+# 注意：tarball 必须写到项目目录外（否则 tar 在归档 . 的同时在 . 内写文件，
+# 目录 mtime 变化会让 tar 以 "file changed as we read it" 退出码 1）
+$TARBALL = Join-Path $env:TEMP "diary-deploy.tar.gz"
+Remove-Item $TARBALL -Force -ErrorAction SilentlyContinue
+tar -czf $TARBALL `
     --exclude=node_modules `
     --exclude=.git `
     --exclude=.env `
     --exclude=deploy.ps1 `
-    --exclude=.deploy.tar.gz `
+    --exclude=remote-deploy.sh `
     --exclude=.next/cache `
     --exclude=backups `
     --exclude=memory `
@@ -36,32 +40,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "========== 4. 上传到服务器 ==========" -ForegroundColor Cyan
-scp .deploy.tar.gz "$SERVER`:$REMOTE_PATH/"
+scp $TARBALL "$SERVER`:$REMOTE_PATH/.deploy.tar.gz"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "上传失败，终止部署" -ForegroundColor Red
-    Remove-Item .deploy.tar.gz -Force
+    Remove-Item $TARBALL -Force
     exit 1
 }
 
-Write-Host "========== 5. 备份当前版本 ==========" -ForegroundColor Cyan
-ssh $SERVER "cd $REMOTE_PATH && `
-    mkdir -p backups && `
-    BACKUP_NAME=backup_\$(date +%Y%m%d_%H%M%S)_\$\$ && `
-    (ls -1 | grep -v '^backups$' | grep -v '^\.deploy\.tar\.gz$' | xargs -I{} cp -r {} backups/\$BACKUP_NAME) && `
-    ls -dt backups/backup_* 2>/dev/null | tail -n +$($BACKUP_KEEP + 1) | xargs -r rm -rf"
+Write-Host "========== 5. 上传部署脚本 ==========" -ForegroundColor Cyan
+scp remote-deploy.sh "$SERVER`:$REMOTE_PATH/remote-deploy.sh"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "上传部署脚本失败，终止部署" -ForegroundColor Red
+    Remove-Item $TARBALL -Force
+    exit 1
+}
 
-Write-Host "========== 6. 服务器解压 + 安装依赖 + 重启 ==========" -ForegroundColor Cyan
-ssh $SERVER "cd $REMOTE_PATH && `
-    tar -xzf .deploy.tar.gz && `
-    rm -f .deploy.tar.gz && `
-    npm install --omit=dev && `
-    npx prisma generate && `
-    HASH=\$(grep -roh '@prisma/client-[a-f0-9]\{12,\}' .next/server 2>/dev/null | sed 's/@prisma\///' | sort -u) && `
-    [ -n \"\$HASH\" ] && ln -sf client \"node_modules/@prisma/\$HASH\" 2>/dev/null; `
-    pm2 delete diary-app 2>/dev/null; `
-    pkill -9 -f 'next-server' 2>/dev/null || true; `
-    sleep 2; `
-    pm2 start npm --name diary-app -- start -- --port 3001"
+Write-Host "========== 6. 服务器部署（备份 → 解压 → 安装 → 重启）==========" -ForegroundColor Cyan
+ssh $SERVER "bash $REMOTE_PATH/remote-deploy.sh"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "服务器部署步骤异常，请 SSH 检查" -ForegroundColor Red
 }
@@ -80,4 +75,4 @@ try {
 }
 
 Write-Host "========== 部署完成！==========" -ForegroundColor Green
-Remove-Item .deploy.tar.gz -Force -ErrorAction SilentlyContinue
+Remove-Item $TARBALL -Force -ErrorAction SilentlyContinue

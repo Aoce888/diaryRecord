@@ -26,6 +26,20 @@ Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
 
 ## 变更历史
 
+### 2026-07-31 — 备份策略升级 + 回滚演练通过
+
+- 备份策略升级为 `src/`（源码）+ `.next/`（构建产物）：Next 运行时从 `.next` 服务，服务器内存不足无法重新 build，回滚必须保留 `.next`；`.next/cache` 可再生排除。备份仍只存服务器本地 `~/diary-app-backups/`，不进 git；`.env*` / `node_modules` / `.git` 一律不备份（安全）
+- 回滚演练完成：停服务 → `mv .next src /tmp` 模拟坏版本 → 从备份恢复 → `pm2 start` → HTTP 200 验证通过，恢复后清理 `/tmp` 残留
+- 备份验证：27M / 份，保留最近 5 份，自动删旧
+
+### 2026-07-31 — 部署流程修复
+
+- 修复 `deploy.ps1` 打包必失败问题：tarball 之前写在项目目录内，tar 归档 `.` 时目录变化 → 退出码 1；现改为写到 `$env:TEMP`
+- 新增 `remote-deploy.sh`：服务器端部署脚本（备份 → 解压 → 装依赖 → prisma generate → hash-link → pm2 重启），`deploy.ps1` 改为上传并调用它，替代脆弱的内联 ssh 命令
+- 备份策略修复：此前备份连 `node_modules`（1.1G）一起 `cp`，多次部署后撑爆 40G 磁盘；现跳过 node_modules、备份到 `~/diary-app-backups/`
+- `.next` 清理需 `sudo rm -rf .next`：历史 root 身份运行的进程留下了 root 属主的图片缓存，myecs 用户删不掉
+- 圈子 API：`/api/circles/lookup` 响应新增 `creatorAvatar`；小程序 profile 页 join-preview 展示创建者头像
+
 ### 2026-07-31 — 圈子功能
 
 - 新增 `Circle`、`CircleMember` Prisma 模型（`circles` / `circle_members` 表）
@@ -89,13 +103,18 @@ pm2 logs diary-app --lines 10
 
 **部署流程：**
 1. 本地 `npm run build` 构建
-2. tar 打包（排除 `node_modules`、`.git`、`.env`、缓存）
+2. tar 打包（排除 `node_modules`、`.git`、`.env`、缓存）—— **tarball 必须写到项目目录外**（如 `$env:TEMP`），否则 tar 归档 `.` 时目录内文件变化会以退出码 1 失败
 3. scp 上传到服务器 `myecs@8.134.102.5:/home/myecs/diary-app/`
-4. 服务器自动备份当前版本到 `~/diary-app-backups/`（保留最近 5 份）
-5. 解压 + `npm install --omit=dev` + `prisma generate` + `pm2 restart`
-6. 健康检查（HTTP 200 确认服务正常）
+4. `deploy.ps1` 上传并执行 `remote-deploy.sh`（服务器端部署脚本）：
+   - 自动备份当前版本到 `~/diary-app-backups/`（保留最近 5 份，每份约 27M）
+   - **备份策略：备份前端改动内容 `src/`（源码）+ `.next/`（构建产物，回滚靠它）**。Next 运行时从 `.next` 服务，服务器内存不足无法重新 build，所以回滚必须保留 `.next`；`.next/cache` 可再生，排除。配置文件（next.config、package.json 等）和项目文件一般不变，不占备份；`.env*` / `node_modules` / `.git` 一律不备份（安全考虑）
+   - 解压前 `sudo rm -rf .next`（历史 root 属主的图片缓存 myecs 删不掉，需 sudo）
+   - `npm install --omit=dev` + `prisma generate` + Prisma hash-link + `pm2 restart`
 
-**回滚：** SSH 到服务器，`ls ~/diary-app-backups/` 找到备份版本恢复。
+**回滚：** SSH 到服务器，`ls ~/diary-app-backups/` 找到备份版本，恢复 `src/` 与 `.next/` 后 `pm2 restart diary-app` 即可。
+5. 健康检查（HTTP 200 确认服务正常）
+
+**回滚：** SSH 到服务器，`ls ~/diary-app-backups/` 找到备份版本，把 `src/` 与 `.next/` 复制回应用目录后 `pm2 restart diary-app`。
 
 ### 服务器直接部署
 

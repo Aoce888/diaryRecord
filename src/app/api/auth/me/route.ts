@@ -27,7 +27,8 @@ export async function PUT(request: Request) {
     const { name, avatar } = await request.json();
     const updates: Record<string, string> = {};
     if (name) updates.name = name;
-    if (avatar !== undefined) updates.avatar = avatar;
+    // 只在头像非空时更新，避免登录流程/旧缓存把空头像误写回数据库
+    if (avatar) updates.avatar = avatar;
 
     const user = await prisma.user.update({
       where: { id: currentUser.userId },

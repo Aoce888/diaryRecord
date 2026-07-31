@@ -40,6 +40,7 @@ export async function GET(request: Request) {
       description: circle.description,
       coverImage: circle.coverImage,
       creatorName: circle.creator.name,
+      creatorAvatar: circle.creator.avatar,
       memberCount: circle._count.members,
       alreadyMember: !!membership,
     });
