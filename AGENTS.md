@@ -26,6 +26,11 @@ Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + Prisma + MySQL
 
 ## 变更历史
 
+### 2026-08-04 — 文本安全检测上线 + 部署脚本自愈
+
+- 上线微信内容安全检测（`src/lib/wechat-security.ts`，msg_sec_check v2）：新增/编辑记录、改昵称、建圈子会过检测（errcode 87014 判违规）；**web 邮箱用户无 openid 自动跳过，不影响 web 端**
+- 修复 git bash → PowerShell 部署失败：`deploy.ps1` 加 UTF-8 BOM（PS 5.1 不再按 GBK 误读中文而吞换行、静默失效赋值行）+ 顶部自愈块（强制 Windows 原生 tar/scp/ssh 优先，Git GNU 版不认 `C:\` 路径）
+
 ### 2026-07-31 — 备份策略升级 + 回滚演练通过
 
 - 备份策略升级为 `src/`（源码）+ `.next/`（构建产物）：Next 运行时从 `.next` 服务，服务器内存不足无法重新 build，回滚必须保留 `.next`；`.next/cache` 可再生排除。备份仍只存服务器本地 `~/diary-app-backups/`，不进 git；`.env*` / `node_modules` / `.git` 一律不备份（安全）
@@ -115,6 +120,8 @@ pm2 logs diary-app --lines 10
 5. 健康检查（HTTP 200 确认服务正常）
 
 **回滚：** SSH 到服务器，`ls ~/diary-app-backups/` 找到备份版本，把 `src/` 与 `.next/` 复制回应用目录后 `pm2 restart diary-app`。
+
+**排障：** 若从 git bash / 其它终端跑部署报 `scp usage:` 或 `$TARBALL` 为空 → 是 GNU tar/scp 抢占 + PS 5.1 编码吞行。`deploy.ps1` 已自愈（顶部自愈块 + UTF-8 BOM），直接 `powershell -NoProfile -File deploy.ps1` 即可，勿用带中文注释的 wrapper。
 
 ### 服务器直接部署
 

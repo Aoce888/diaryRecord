@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { checkUserTextSecurity } from "@/lib/wechat-security";
 
 async function canEdit(visitId: string, userId: string) {
   const visit = await prisma.visit.findUnique({
@@ -78,6 +79,18 @@ export async function PUT(
     const body = await request.json();
     const { type, name, location, date, cost, rating, notes, tags, photos, isPrivate } =
       body;
+
+    // 文本安全检测（仅小程序用户触发，web 邮箱用户无 openid 自动跳过）
+    const contentCheck = await checkUserTextSecurity(
+      user.userId,
+      [name, location, notes, (tags || []).join(" ")].filter(Boolean).join("\n")
+    );
+    if (!contentCheck.ok) {
+      return NextResponse.json(
+        { error: contentCheck.errmsg || "内容违规" },
+        { status: 400 }
+      );
+    }
 
     const visit = await prisma.visit.update({
       where: { id },

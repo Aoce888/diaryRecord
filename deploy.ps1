@@ -1,5 +1,14 @@
-# 本地构建 + 上传到服务器（服务器不需要再 build）
+﻿# 本地构建 + 上传到服务器（服务器不需要再 build）
 # 用法：在项目根目录执行 .\deploy.ps1
+
+# ---- 工具自愈（keep this block ASCII）----
+# 从 git bash 启动时，PATH 里的 GNU tar/scp/ssh（Git\usr\bin）会抢走 Windows 原生版，
+# 它们不认 C:\ 盘符路径。这台机器 Machine PATH 里 Git\usr\bin 排在 System32 之前，
+# 所以仅重置 PATH 不够 —— 这里把 Windows 原生目录强插到最前面（原生工具存在才插）。
+$__winDirs = 'C:\Windows\System32;C:\Windows;C:\Windows\System32\OpenSSH'
+if (Test-Path 'C:\Windows\System32\OpenSSH\scp.exe') {
+    $env:PATH = $__winDirs + ';' + $env:PATH
+}
 
 # 服务器信息从 gitignored 的 .env 读取，避免在公开仓库暴露主机地址/用户名。
 # 在 .env 中配置：DEPLOY_SERVER=myecs@<ip>、DEPLOY_REMOTE_PATH=/home/myecs/diary-app

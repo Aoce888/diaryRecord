@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkUserTextSecurity } from "@/lib/wechat-security";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser(request);
@@ -25,6 +26,16 @@ export async function PUT(request: Request) {
 
   try {
     const { name, avatar } = await request.json();
+    if (name) {
+      // 昵称文本安全检测（scene=1 资料）
+      const contentCheck = await checkUserTextSecurity(currentUser.userId, name, 1);
+      if (!contentCheck.ok) {
+        return NextResponse.json(
+          { error: contentCheck.errmsg || "昵称含违规内容" },
+          { status: 400 }
+        );
+      }
+    }
     const updates: Record<string, string> = {};
     if (name) updates.name = name;
     // 只在头像非空时更新，避免登录流程/旧缓存把空头像误写回数据库

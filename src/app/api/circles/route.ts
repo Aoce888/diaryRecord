@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { checkUserTextSecurity } from "@/lib/wechat-security";
 
 // 生成 6 位邀请码（大写字母+数字，去除易混淆字符）
 function generateInviteCode(): string {
@@ -25,6 +26,18 @@ export async function POST(request: Request) {
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "圈子名称不能为空" }, { status: 400 });
+    }
+
+    // 文本安全检测（仅小程序用户触发，web 邮箱用户无 openid 自动跳过）
+    const contentCheck = await checkUserTextSecurity(
+      user.userId,
+      [name, description || ""].filter(Boolean).join("\n")
+    );
+    if (!contentCheck.ok) {
+      return NextResponse.json(
+        { error: contentCheck.errmsg || "内容违规" },
+        { status: 400 }
+      );
     }
 
     // 生成唯一邀请码（最多重试 5 次避免碰撞）
