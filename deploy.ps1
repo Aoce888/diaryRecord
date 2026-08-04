@@ -1,8 +1,22 @@
 # 本地构建 + 上传到服务器（服务器不需要再 build）
 # 用法：在项目根目录执行 .\deploy.ps1
 
-$SERVER = "myecs@8.134.102.5"
-$REMOTE_PATH = "/home/myecs/diary-app"
+# 服务器信息从 gitignored 的 .env 读取，避免在公开仓库暴露主机地址/用户名。
+# 在 .env 中配置：DEPLOY_SERVER=myecs@<ip>、DEPLOY_REMOTE_PATH=/home/myecs/diary-app
+$SERVER = ""
+$REMOTE_PATH = ""
+$envFile = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*DEPLOY_SERVER="?([^"#]+)"?\s*$') { $SERVER = $matches[1].Trim() }
+        if ($_ -match '^\s*DEPLOY_REMOTE_PATH="?([^"#]+)"?\s*$') { $REMOTE_PATH = $matches[1].Trim() }
+    }
+}
+if (-not $SERVER) {
+    Write-Host "缺少 DEPLOY_SERVER，请在 .env 中配置（例：DEPLOY_SERVER=myecs@你的服务器IP）" -ForegroundColor Red
+    exit 1
+}
+if (-not $REMOTE_PATH) { $REMOTE_PATH = "/home/myecs/diary-app" }
 # 备份策略（保留最近 5 份、跳过 node_modules）在 remote-deploy.sh 中实现
 
 Write-Host "========== 1. 生成 Prisma Client ==========" -ForegroundColor Cyan
