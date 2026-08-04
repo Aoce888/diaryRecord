@@ -97,20 +97,40 @@ export async function GET(request: Request) {
         circle: {
           include: {
             creator: { select: { id: true, name: true, avatar: true } },
-            _count: { select: { members: true } },
+            // 成员数只统计已通过审核的成员（pending 不算）
+            _count: {
+              select: { members: { where: { status: "active" } } },
+            },
+            // 前 3 个已通过审核的成员（按入圈先后），用于圈子头像拼图
+            members: {
+              where: { status: "active" },
+              select: { user: { select: { name: true, avatar: true } } },
+              orderBy: { joinedAt: "asc" },
+              take: 3,
+            },
           },
         },
       },
       orderBy: { joinedAt: "desc" },
     });
 
-    const circles = memberships.map((m) => ({
-      ...m.circle,
-      myRole: m.role,
-      memberCount: m.circle._count.members,
-    }));
+    const circles: unknown[] = [];
+    const pendingCircles: unknown[] = [];
+    for (const m of memberships) {
+      const item = {
+        ...m.circle,
+        myRole: m.role,
+        memberCount: m.circle._count.members,
+        memberAvatars: m.circle.members.map((mm) => ({
+          name: mm.user.name,
+          avatar: mm.user.avatar,
+        })),
+      };
+      if (m.status === "pending") pendingCircles.push(item);
+      else circles.push(item);
+    }
 
-    return NextResponse.json({ circles });
+    return NextResponse.json({ circles, pendingCircles });
   } catch (error) {
     console.error("GET /api/circles error:", error);
     return NextResponse.json(

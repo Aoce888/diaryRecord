@@ -30,24 +30,28 @@ export async function POST(
       return NextResponse.json({ error: "邀请码错误" }, { status: 403 });
     }
 
-    // 检查是否已是成员
+    // 检查是否已有申请/已加入
     const existing = await prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId: id, userId: user.userId } },
     });
     if (existing) {
+      if (existing.status === "pending") {
+        return NextResponse.json({ error: "已提交申请，等待群主审核" }, { status: 400 });
+      }
       return NextResponse.json({ error: "你已经在圈子中了" }, { status: 400 });
     }
 
-    // 加入圈子
+    // 凭邀请码加入 → 先进入待审核状态，群主同意后才正式入圈
     await prisma.circleMember.create({
       data: {
         circleId: id,
         userId: user.userId,
         role: "member",
+        status: "pending",
       },
     });
 
-    return NextResponse.json({ success: true, circleId: id });
+    return NextResponse.json({ success: true, pending: true, circleId: id });
   } catch (error) {
     console.error("POST /api/circles/[id]/join error:", error);
     return NextResponse.json({ error: "加入圈子失败" }, { status: 500 });

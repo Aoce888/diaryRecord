@@ -93,6 +93,7 @@ model CircleMember {
   userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      String   @default("member") // owner | admin | member
+  status    String   @default("active") // active | pending（凭邀请码申请加入，待群主审核）
   joinedAt  DateTime @default(now())
 
   @@unique([circleId, userId])

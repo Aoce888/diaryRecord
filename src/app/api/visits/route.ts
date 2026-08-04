@@ -34,11 +34,18 @@ export async function GET(request: Request) {
       // 默认：只展示未删除的记录
       where.deletedAt = null;
 
-      // 可见性范围：小程序专用
-      // scope=me     → 仅自己的（含私密）
-      // scope=circle → 自己的全部 + 圈子好友的非私密
+      // 私密筛选：仅自己的私密记录（强制绑定当前登录用户，杜绝泄露他人私密）
+      const privateOnly = searchParams.get("private") === "true";
       const scope = searchParams.get("scope");
-      if (scope === "me" || scope === "circle") {
+
+      if (privateOnly) {
+        const user = await getCurrentUser(request);
+        if (!user) {
+          return NextResponse.json({ error: "请先登录" }, { status: 401 });
+        }
+        where.userId = user.userId;
+        where.isPrivate = true;
+      } else if (scope === "me" || scope === "circle") {
         const user = await getCurrentUser(request);
         if (!user) {
           return NextResponse.json({ error: "请先登录" }, { status: 401 });
@@ -46,9 +53,9 @@ export async function GET(request: Request) {
         if (scope === "me") {
           where.userId = user.userId;
         } else {
-          // 我加入的圈子
+          // 我加入的圈子（仅已通过审核的；pending 申请未放行前不可查看圈子内容）
           const myMemberships = await prisma.circleMember.findMany({
-            where: { userId: user.userId },
+            where: { userId: user.userId, status: "active" },
             select: { circleId: true },
           });
           const myCircleIds = myMemberships.map((m) => m.circleId);

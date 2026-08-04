@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { VisitCard } from "@/components/visit-card";
 import { AddVisitDialog } from "@/components/add-visit-dialog";
@@ -65,6 +65,10 @@ export default function Home() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const filterRef = useRef("all");
 
   // Auto-open login dialog when redirected with ?login=1
   useEffect(() => {
@@ -91,10 +95,17 @@ export default function Home() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filterType !== "all") params.set("type", filterType);
+      if (filterType === "private") {
+        params.set("private", "true");
+      } else if (filterType !== "all") {
+        params.set("type", filterType);
+      }
+      params.set("page", "1");
       const res = await fetch(`/api/visits?${params}`);
       const data = await res.json();
       setVisits(data.visits || []);
+      setPage(1);
+      setHasMore(data.page < (data.totalPages || 1));
     } catch (e) {
       console.error("Failed to fetch visits:", e);
     } finally {
@@ -106,6 +117,39 @@ export default function Home() {
     fetchUser();
     fetchVisits();
   }, [fetchUser, fetchVisits]);
+
+  useEffect(() => {
+    filterRef.current = filterType;
+  }, [filterType]);
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const targetFilter = filterRef.current;
+    try {
+      const params = new URLSearchParams();
+      if (filterType === "private") {
+        params.set("private", "true");
+      } else if (filterType !== "all") {
+        params.set("type", filterType);
+      }
+      params.set("page", String(page + 1));
+      const res = await fetch(`/api/visits?${params}`);
+      const data = await res.json();
+      // 请求在途时用户切换了筛选，丢弃过时结果
+      if (filterRef.current !== targetFilter) return;
+      setVisits((prev) => {
+        const ids = new Set(prev.map((v) => v.id));
+        return [...prev, ...(data.visits || []).filter((v: Visit) => !ids.has(v.id))];
+      });
+      setPage(data.page);
+      setHasMore(data.page < (data.totalPages || 1));
+    } catch (e) {
+      console.error("Failed to load more visits:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleSave = async (data: VisitFormData) => {
     const res = await fetch("/api/visits", {
@@ -250,6 +294,7 @@ export default function Home() {
               <SelectItem value="all">全部</SelectItem>
               <SelectItem value="eating">🍜 美食</SelectItem>
               <SelectItem value="playing">🎮 游玩</SelectItem>
+              <SelectItem value="private">🔒 私密</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -267,16 +312,32 @@ export default function Home() {
             <p className="text-lg text-gray-400">还没有记录，{user ? '点击「新增」开始记录吧！' : '登录后开始记录吧！'}</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredVisits.map((visit) => (
-              <VisitCard
-                key={visit.id}
-                visit={visit}
-                currentUser={user}
-                onDelete={visit.creatorId === user?.id ? () => handleDelete(visit.id) : undefined}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredVisits.map((visit) => (
+                <VisitCard
+                  key={visit.id}
+                  visit={visit}
+                  currentUser={user}
+                  onDelete={visit.creatorId === user?.id ? () => handleDelete(visit.id) : undefined}
+                />
+              ))}
+            </div>
+            <div className="mt-8 flex justify-center pb-4">
+              {hasMore ? (
+                <Button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  variant="outline"
+                  className="rounded-xl border-pink-200 text-pink-500 hover:bg-pink-50"
+                >
+                  {loadingMore ? "加载中..." : "加载更多"}
+                </Button>
+              ) : (
+                <p className="text-sm text-gray-400">已经到底啦~</p>
+              )}
+            </div>
+          </>
         )}
       </main>
 
