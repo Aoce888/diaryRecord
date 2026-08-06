@@ -22,7 +22,7 @@ export async function GET(
       where: { id },
       include: {
         creator: { select: { id: true, name: true, avatar: true } },
-        editors: { select: { id: true } },
+        editors: { select: { id: true, name: true, avatar: true } },
       },
     });
 
@@ -50,6 +50,11 @@ export async function GET(
       creatorId: visit.creator.id,
       creatorAvatar: (visit as any).creator.avatar || null,
       editors: visit.editors.map((e: any) => e.id),
+      editorList: visit.editors.map((e: any) => ({
+        id: e.id,
+        name: e.name,
+        avatar: e.avatar || "",
+      })),
     });
   } catch (error) {
     console.error("GET /api/visits/[id] error:", error);
